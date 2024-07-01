@@ -4,6 +4,7 @@ package client
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -83,6 +84,11 @@ type Response struct {
 
 // Convert a file from a local path using the http client
 func (c *Client) Convert(r io.Reader, filename string) (*Response, error) {
+	return c.ConvertWithContext(context.Background(), r, filename)
+}
+
+// ConvertWithContext is identical to Convert but allows for passing in a context.
+func (c *Client) ConvertWithContext(ctx context.Context, r io.Reader, filename string) (*Response, error) {
 	buf := &bytes.Buffer{}
 	w := multipart.NewWriter(buf)
 	part, err := w.CreateFormFile("input", filename)
@@ -96,7 +102,7 @@ func (c *Client) Convert(r io.Reader, filename string) (*Response, error) {
 		return nil, err
 	}
 
-	req, err := http.NewRequest("POST", fmt.Sprintf("%v%v/convert", c.protocol, c.endpoint), buf)
+	req, err := http.NewRequestWithContext(ctx, "POST", fmt.Sprintf("%v%v/convert", c.protocol, c.endpoint), buf)
 	if err != nil {
 		return nil, err
 	}
@@ -128,11 +134,17 @@ func (c *Client) Convert(r io.Reader, filename string) (*Response, error) {
 // ConvertPath uses the docconv Client to convert the local file
 // found at path.
 func ConvertPath(c *Client, path string) (*Response, error) {
+	return ConvertPathWithContext(c, context.Background(), path)
+}
+
+// ConvertPathWithContext is identical to ConvertPath but allows for
+// passing in a context.
+func ConvertPathWithContext(c *Client, ctx context.Context, path string) (*Response, error) {
 	f, err := os.Open(path)
 	if err != nil {
 		return nil, err
 	}
 	defer f.Close()
 
-	return c.Convert(f, f.Name())
+	return c.ConvertWithContext(ctx, f, f.Name())
 }
